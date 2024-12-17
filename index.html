@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Speedometer & Odometer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .box {
+            margin: 10px;
+            padding: 20px;
+            background: #fff;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 250px;
+        }
+        .box h2 {
+            margin: 0;
+            color: #555;
+            font-size: 1.2em;
+        }
+        .box p {
+            margin: 10px 0 0;
+            color: #007bff;
+            font-size: 2em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-Time GPS Speedometer & Odometer</h1>
+    <div class="container">
+        <div class="box">
+            <h2>Current Speed</h2>
+            <p id="speed">0 m/s</p>
+        </div>
+        <div class="box">
+            <h2>Total Distance</h2>
+            <p id="distance">0.00 m</p>
+        </div>
+        <div class="box">
+            <h2>Trip Duration</h2>
+            <p id="timer">0:00</p>
+        </div>
+    </div>
+
+    <script>
+        // Variables for GPS tracking
+        let previousPosition = null;
+        let totalDistance = 0;
+        let startTime = null;
+        let timerInterval = null;
+
+        // Function to calculate distance using Haversine formula
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth's radius in meters
+            const toRad = (value) => (value * Math.PI) / 180;
+
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) *
+                Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // Distance in meters
+        }
+
+        // Function to start the trip timer
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById("timer").innerText = `${minutes}:${seconds < 10 ? "0" + seconds : seconds}`;
+            }, 1000);
+        }
+
+        // Function to update GPS data
+        function updateLocation(position) {
+            const { latitude, longitude, timestamp } = position.coords;
+
+            if (!previousPosition) {
+                // First position: initialize values
+                previousPosition = { latitude, longitude, timestamp };
+                startTimer();
+                return;
+            }
+
+            // Calculate distance and speed
+            const distance = calculateDistance(
+                previousPosition.latitude,
+                previousPosition.longitude,
+                latitude,
+                longitude
+            );
+
+            const timeDiff = (timestamp - previousPosition.timestamp) / 1000; // Seconds
+            const speed = timeDiff > 0 ? (distance / timeDiff) : 0; // Speed in m/s
+
+            // Update total distance
+            totalDistance += distance;
+
+            // Update UI
+            document.getElementById("speed").innerText = `${speed.toFixed(2)} m/s`;
+            document.getElementById("distance").innerText = `${totalDistance.toFixed(2)} m`;
+
+            // Update previous position
+            previousPosition = { latitude, longitude, timestamp };
+        }
+
+        // Handle geolocation errors
+        function handleError(error) {
+            alert(`Error: ${error.message}`);
+        }
+
+        // Start tracking location
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(updateLocation, handleError, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000,
+            });
+        } else {
+            alert("Geolocation is not supported in this browser.");
+        }
+    </script>
+</body>
+</html>
